@@ -1,0 +1,15 @@
+{
+    "teams": [
+      {"name": "Cincinnati Bengals", "division": "AFC North", "wins": 3, "losses": 5},
+      {"name": "Baltimore Ravens", "division": "AFC North", "wins": 5, "losses": 3}
+    ],
+    "players": [
+      {"name": "Joe Burrow", "position": "QB", "team_name": "Cincinnati Bengals", "fantasy_points": 250.5},
+      {"name": "Ja'Marr Chase", "position": "WR", "team_name": "Cincinnati Bengals", "fantasy_points": 210.3},
+      {"name": "Chase Brown", "position": "RB", "team_name": "Cincinnati Bengals", "fantasy_points": 95.7},
+      {"name": "Lamar Jackson", "position": "QB", "team_name": "Baltimore Ravens", "fantasy_points": 275.4},
+      {"name": "Zay Flowers", "position": "WR", "team_name": "Baltimore Ravens", "fantasy_points": 180.2},
+      {"name": "Derrick Henry", "position": "RB", "team_name": "Baltimore Ravens", "fantasy_points": 220.6}
+    ]
+  }
+  
