@@ -43,9 +43,30 @@ Backend/Database:
         III. Away Team
         IV. Spread
         V. O/U
-    e. To be added later: qbr, passing yards per game, pass TDs, % routes run, target share, % rushes, yards per carry, red zone targets, team red zone percentage
+    e. Player Game - Performance for a player in a specific game
+        I. Player ID
+        II. Game ID
+        III. Passes Thrown 
+        IV. Passes Completed
+        V. Pass Yds
+        VI. Pass TDs
+        VII. Rush Attempts
+        VIII. Rush Yds
+        IX. Rush TDs
+        X. Receptions
+        XI. Rec Yds
+        XII. Rec TDs
+    f. To be added later: qbr, passing yards per game, pass TDs, % routes run, target share, % rushes, yards per carry, red zone targets, team red zone percentage
 
 4. Support a bulk import for restoring lost data or importing first time data
+
+TO DO:
+Next time: Start with... 
+
+Great resource at https://sportsdata.io/developers/api-documentation/nfl
+    a. Some endpoints that could definitely be used: Standings, Player Profiles - by Team, Team Profiles - by Season, Week - Last Completed, Week - Upcoming, LOOK MORE 
+
+Set up the bulk import for past season and active season, weekly import and update for what happened in the past week
 
 ##############################################################################
 

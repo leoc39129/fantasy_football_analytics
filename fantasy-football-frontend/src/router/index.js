@@ -14,4 +14,14 @@ const router = createRouter({
   routes
 });
 
+// Navigation guard to reload the home page
+router.beforeEach((to, from, next) => {
+  if (to.path === '/' && from.path !== '/') {
+    // Reload the page when navigating to the home page from another route
+    window.location.reload();
+  } else {
+    next();
+  }
+});
+
 export default router;

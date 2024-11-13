@@ -34,3 +34,4 @@ __pycache__/
 ffa_flask_app/migrations/
 .json*
 pre_project/
+/data/
