@@ -15,7 +15,7 @@ def get_all_players():
             "id": player.id,
             "name": player.name,
             "position": player.position,
-            "team": player.team.name,  # Display the team name
+            "team": player.team,  # Display the team name
             "fantasy_points": player.fantasy_points
         }
         for player in players
@@ -33,7 +33,7 @@ def get_player_by_id(player_id):
                 "id": player.id,
                 "name": player.name,
                 "position": player.position,
-                "team": player.team.name,  # Display the team name
+                "team": player.team,  # Display the team name
                 "fantasy_points": player.fantasy_points
             }
             current_app.logger.info(f"Player with ID {player_id} retrieved successfully.")

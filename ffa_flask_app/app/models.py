@@ -8,11 +8,10 @@ class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     position = db.Column(db.String(20), nullable=False)
-    fantasy_points = db.Column(db.Float)
+    team = db.Column(db.String(3), nullable=False)
 
-    # Foreign key and relationship to Team
-    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
-    team = db.relationship("Team", back_populates="players")
+    # Foreign key and relationships
+    player_games = db.relationship('PlayerGame', back_populates='player')
 
     def __repr__(self):
         return f'<Player {self.name} - {self.position}>'
@@ -40,7 +39,7 @@ class Team(db.Model):
     losses = db.Column(db.Integer)
 
     # Define a relationship to reference players in a team
-    players = db.relationship("Player", back_populates="team", cascade="all, delete")
+    # players = db.relationship("Player", back_populates="team", lazy="dynamic")
 
     def __repr__(self):
         return f'<Team {self.name} - {self.division}>'
@@ -70,7 +69,7 @@ class Game(db.Model):
     # Relationships
     home_team = db.relationship('Team', foreign_keys=[home_team_id])
     away_team = db.relationship('Team', foreign_keys=[away_team_id])
-    player_games = db.relationship('PlayerGame', back_populates='game')
+    # player_games = db.relationship('PlayerGame', back_populates='game')
 
     def __repr__(self):
         return f'<Game ID: {self.id}, Home Team: {self.home_team}, Away Team: {self.away_team}>'
@@ -99,40 +98,33 @@ class PlayerGame(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False)
-    game_id = db.Column(db.Integer, db.ForeignKey('games.id'), nullable=False)
-    passes_thrown = db.Column(db.Integer, default=0)
-    passes_completed = db.Column(db.Integer, default=0)
-    pass_yards = db.Column(db.Integer, default=0)
-    pass_tds = db.Column(db.Integer, default=0)
+    game_id = db.Column(db.Integer, nullable=True)
     rush_attempts = db.Column(db.Integer, default=0)
     rush_yards = db.Column(db.Float, default=0)
     rush_tds = db.Column(db.Integer, default=0)
+    targets = db.Column(db.Integer, default=0)
     receptions = db.Column(db.Integer, default=0)
     rec_yards = db.Column(db.Float, default=0)
     rec_tds = db.Column(db.Integer, default=0)
 
     # Relationships
     player = db.relationship('Player', back_populates='player_games')
-    game = db.relationship('Game', back_populates='player_games')
+    # game = db.relationship('Game', back_populates='player_games')
 
     def __repr__(self):
         return f'<PlayerGame Player ID: {self.player_id}, Game ID: {self.game_id}, Stats: Pass Yds: {self.pass_yards}, Rush Yds: {self.rush_yards}, Rec Yds: {self.rec_yards}>'
 
-def add_player_game(player_id, game_id, passes_thrown=0, passes_completed=0, pass_yards=0.0, 
-                    pass_tds=0, rush_attempts=0, rush_yards=0.0, rush_tds=0, 
-                    receptions=0, rec_yards=0.0, rec_tds=0):
+def add_player_game(player_id, game_id, rush_attempts=0, rush_yards=0.0, rush_tds=0, 
+                    targets=0, receptions=0, rec_yards=0.0, rec_tds=0):
     """Adds a player's performance in a specific game to the database."""
     try:
         new_player_game = PlayerGame(
             player_id=player_id,
             game_id=game_id,
-            passes_thrown=passes_thrown,
-            passes_completed=passes_completed,
-            pass_yards=pass_yards,
-            pass_tds=pass_tds,
             rush_attempts=rush_attempts,
             rush_yards=rush_yards,
             rush_tds=rush_tds,
+            targets=targets,
             receptions=receptions,
             rec_yards=rec_yards,
             rec_tds=rec_tds

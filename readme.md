@@ -61,12 +61,32 @@ Backend/Database:
 4. Support a bulk import for restoring lost data or importing first time data
 
 TO DO:
-Next time: Start with... 
+So there are some major issues with some of the endpoints -- the stats are just wrong for the bulk imports, and still a little bit wrong for individual players, but very fixable
 
-Great resource at https://sportsdata.io/developers/api-documentation/nfl
-    a. Some endpoints that could definitely be used: Standings, Player Profiles - by Team, Team Profiles - by Season, Week - Last Completed, Week - Upcoming, LOOK MORE 
+For Javonte Williams (playerID: 22558)
+https://api.sportsdata.io/v3/nfl/stats/json/PlayerGameStatsBySeason/2024/22558/all?key=eb609e05efa8406fba6c84327f4ff4dc
 
-Set up the bulk import for past season and active season, weekly import and update for what happened in the past week
+Rushing attempts, targets, and receptions are not integers -- round them up and they're fine
+For rushing/reception yds, once the number gets to >50 yds, often you have to add one yard and round up
+
+Confirming that trend with a few other players/positions...
+
+WR:
+Drake London (playerID: 23151)
+Receptions and targets just need to be rounded up
+Reception yds just need to be rounded up (except one entry -- 152.8 vs. 154)
+
+QB:
+Bo Nix (playerID: 25069)
+https://api.sportsdata.io/v3/nfl/stats/json/PlayerGameStatsBySeason/2024/25069/all?key=eb609e05efa8406fba6c84327f4ff4dc
+
+These stats don't seem to have any rhyme or reason with them, the passing yards are WAY off, like 100 yards off, interceptions are off, passing TDs and probably attempts/completions are correct
+
+For now, I guess we'll ignore QBs and only worry about WRs and RBs, using this player by player approach to get the most accurate stats
+
+So I got Drake London added as a player and each of his games as a playergame. Do this for the top RBs and WRs, move on to neural network soon
+
+
 
 ##############################################################################
 
