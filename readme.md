@@ -84,7 +84,10 @@ These stats don't seem to have any rhyme or reason with them, the passing yards 
 
 For now, I guess we'll ignore QBs and only worry about WRs and RBs, using this player by player approach to get the most accurate stats
 
-So I got Drake London added as a player and each of his games as a playergame. Do this for the top RBs and WRs, move on to neural network soon
+So I got Drake London added as a player and each of his games as a playergame. Do this for the top RBs and WRs, move on to prediction soon
+1. Prediction
+2. Smoother importing, DB backups
+3. Connect Team and Game models to Player and PlayerGame models
 
 
 

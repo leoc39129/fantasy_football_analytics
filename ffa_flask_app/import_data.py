@@ -1,99 +1,139 @@
-import requests
-import argparse
-from app.models import add_player_game, db, Player
+from app.models import add_player_game, db, Player, PlayerGame
 from app import create_app
+import time
+import pandas as pd
 
 app = create_app()
-app.app_context().push()
 
-def add_player_if_not_exists(player_id, player_name, position, team):
+def add_player_if_not_exists(player_id, player_name, team, position):
     """
-    Check if a player exists in the database. If not, add them.
+    Check if a player exists in the database, and add them if not.
+    :param player_id: The player's ID.
+    :param player_name: The player's name.
+    :param team: The player's team.
+    :param position: The player's position.
+    """
+    with app.app_context():
+        existing_player = Player.query.get(player_id)
+        if not existing_player:
+            try:
+                new_player = Player(id=player_id, name=player_name, team=team, position=position)
+                db.session.add(new_player)
+                db.session.commit()
+                print(f"Added new player: {player_name} (ID: {player_id})")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error adding player {player_name} (ID: {player_id}): {e}")
+
+
+def import_weekly_player_stats(player_id, player_name, team, position, csv_path):
+    """
+    Import weekly stats for a player from a CSV file and insert them into the database.
+    :param player_id: The player's ID in the database.
+    :param player_name: The player's name.
+    :param team: The player's team.
+    :param position: The player's position.
+    :param csv_path: Path to the CSV file with weekly stats.
+    """
+    print(player_name)
+    # Check if the player exists and add them if not
+    add_player_if_not_exists(player_id, player_name, team, position)
+
+    # Load the CSV data into a DataFrame
+    df = pd.read_csv(csv_path, skiprows=1)
+
+    # Define the columns to extract
+    relevant_columns = [
+        "Date", "Att", "Yds", "TD", "Tgt", "Rec", "Yds.1", "TD.1"
+    ]
+
+    # Rename columns for consistency with the PlayerGame model
+    column_mapping = {
+        "Date": "date",
+        "Att": "rush_attempts",
+        "Yds": "rush_yards",
+        "TD": "rush_tds",
+        "Tgt": "targets",
+        "Rec": "receptions",
+        "Yds.1": "rec_yards",
+        "TD.1": "rec_tds"
+    }
     
-    Args:
-        player_id (int): The player's ID.
-        player_name (str): The player's name.
-        position (str): The player's position.
-        team (str): The player's team (short name).
-    """
-    existing_player = Player.query.get(player_id)
-    if not existing_player:
-        try:
-            # Add player to the database
-            new_player = Player(id=player_id, name=player_name, position=position, team=team)
-            db.session.add(new_player)
-            db.session.commit()
-            print(f"Added new player: {player_name} (ID: {player_id})")
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error adding player {player_name} (ID: {player_id}): {e}")
+    # Filter and rename the relevant columns
+    df = df[relevant_columns].rename(columns=column_mapping)
 
+    # Remove any rows with aggregate or non-week data
+    # df = df.dropna(subset=[""])
 
-def import_player_game_data(api_url):
-    """
-    Fetch player game data from an API and import it into the database.
+    with app.app_context():
+        for _, row in df.iterrows():
+            try:
+                # Create a new PlayerGame instance
+                add_player_game(
+                    player_id=player_id,
+                    game_id=1,
+                    rush_attempts=int(row["rush_attempts"]),
+                    rush_yards=float(row["rush_yards"]),
+                    rush_tds=int(row["rush_tds"]),
+                    targets=int(row["targets"]),
+                    receptions=int(row["receptions"]),
+                    rec_yards=float(row["rec_yards"]),
+                    rec_tds=int(row["rec_tds"])
+                )
 
-    Args:
-        api_url (str): The API endpoint URL.
-        headers (dict): The headers required for API authentication.
-    """
-    try:
-        # Fetch the data from the API
-        response = requests.get(api_url)
-        response.raise_for_status()
-        data = response.json()
-
-        # Loop through the data and extract relevant fields
-        for player_game in data:
-            player_id = player_game.get("PlayerID")
-            player_name = player_game.get("Name")
-            position = player_game.get("Position")
-            team = player_game.get("Team")
-
-            # Ensure the player exists in the database
-            add_player_if_not_exists(player_id, player_name, position, team)
-
-            # Extract game and performance data
-            game_id = player_game.get("GlobalGameID")  # Map to your Game model's ID if necessary
-            rushing_attempts = player_game.get("RushingAttempts", 0)
-            rushing_yards = player_game.get("RushingYards", 0)
-            rushing_tds = player_game.get("RushingTouchdowns", 0)
-            receiving_targets = player_game.get("ReceivingTargets", 0)
-            receptions = player_game.get("Receptions", 0)
-            receiving_yards = player_game.get("ReceivingYards", 0)
-            receiving_tds = player_game.get("ReceivingTouchdowns", 0)
-
-            # Add the player game data to the database
-            add_player_game(
-                player_id=player_id,
-                game_id=game_id,
-                rush_attempts=rushing_attempts,
-                rush_yards=rushing_yards,
-                rush_tds=rushing_tds,
-                targets=receiving_targets,
-                receptions=receptions,
-                rec_yards=receiving_yards,
-                rec_tds=receiving_tds,
-            )
-
-        print("Player game data imported successfully.")
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching data from API: {e}")
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error importing data: {e}")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error importing stats for Week {row['date']}: {e}")
 
 if __name__ == "__main__":
-    # Set up argument parser
-    parser = argparse.ArgumentParser(description="Import player game data into the database.")
-    parser.add_argument("player_id", type=int, help="The ID of the player to fetch data for.")
-
-    # Parse arguments
-    args = parser.parse_args()
-
-    # API configuration
-    API_URL = "https://api.sportsdata.io/v3/nfl/stats/json/PlayerGameStatsBySeason/2024/" + str(args.player_id) + "/all?key=eb609e05efa8406fba6c84327f4ff4dc"
+    # print("Uncomment instructions!")
 
     # Call the function with the specified player ID
-    import_player_game_data(API_URL)
+    
+    # Set up argument parser
+    wr_ids = {
+        "Ja'marr Chase" : 22564,
+        "Amon-Ra St. Brown" : 22587,
+        "CeeDee Lamb" : 21679,
+        "Justin Jefferson" : 21685,
+        "Terry McLaurin" : 20873,
+        "Garrett Wilson" : 23122,
+        "Jaxon Smith-Njigba" : 23157,
+        "Zay Flowers" : 23120,
+        "Cortland Sutton" : 19800,
+        "Malik Nabers" : 24953,
+        "Ladd McConkey" : 25097,
+        "Nico Collins" : 21756
+    }
+
+    rb_ids = {
+        "Breece Hall" : [22526, "NYJ", "RB"],
+        "Saquon Barkley" : [19766, "PHI", "RB"],
+        "Derrick Henry" : [17959, "BAL", "RB"],
+        "Alvin Kamara" : [18878, "NO", "RB"],
+        "Bijan Robinson" : [23189, "ATL", "RB"],
+        "Jonathan Taylor" : [21682, "IND", "RB"],
+        "Joe Mixon" : [18858, "HOU", "RB"],
+        "Aaron Jones" : [19045, "MIN", "RB"],
+        "Chase Brown" : [24374, "CIN", "RB"],
+        "Jahmyr Gibbs" : [23200, "DET", "RB"],
+        "David Montgomery" : [20882, "DET", "RB"],
+        "Josh Jacobs" : [20824, "GB", "RB"],
+        "Kyren Williams" : [23212, "LAR", "RB"],
+        "JK Dobbins" : [21674, "LAC", "RB"],
+        "James Conner" : [18983, "ARI", "RB"],
+        "Bucky Irving" : [24967, "TB", "RB"]
+    }
+
+    for rb in rb_ids:
+        # Path to your CSV file
+        first, last = rb.split(" ")[0].lower(), rb.split(" ")[1].lower()
+        CSV_FILE_PATH = f"../data/{first}_{last}_2024.csv"
+
+        # Load the CSV and print the column names
+        df = pd.read_csv(CSV_FILE_PATH, skiprows=1)
+        print(df.columns)
+
+        import_weekly_player_stats(rb_ids[rb][0], rb, rb_ids[rb][1], rb_ids[rb][2], CSV_FILE_PATH)
+
+    
