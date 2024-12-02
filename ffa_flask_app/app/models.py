@@ -1,4 +1,3 @@
-# models.py
 from app import db
 from flask import current_app
 
@@ -8,17 +7,20 @@ class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     position = db.Column(db.String(20), nullable=False)
-    team = db.Column(db.String(3), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)  # Correct foreign key column
 
-    # Foreign key and relationships
+    # Relationships
+    team = db.relationship("Team", back_populates="players")  # Corrected relationship
     player_games = db.relationship('PlayerGame', back_populates='player')
 
     def __repr__(self):
         return f'<Player {self.name} - {self.position}>'
     
-def add_player(name, position, team_id, fantasy_points):
+def add_player(name, position, team_id):
     try:
-        new_player = Player(name=name, position=position, team_id=team_id, fantasy_points=fantasy_points)
+        if not team_id:
+            raise ValueError("team_id cannot be None")
+        new_player = Player(name=name, position=position, team=team_id)
         db.session.add(new_player)
         db.session.commit()
         current_app.logger.info(f"Successfully added player: {name}")
@@ -33,20 +35,18 @@ class Team(db.Model):
     __tablename__ = 'teams'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    division = db.Column(db.String(20), nullable=False)
-    wins = db.Column(db.Integer)
-    losses = db.Column(db.Integer)
+    name = db.Column(db.String(3), nullable=False)
+    division = db.Column(db.String(10), nullable=False)
 
-    # Define a relationship to reference players in a team
-    # players = db.relationship("Player", back_populates="team", lazy="dynamic")
+    # Relationships
+    players = db.relationship("Player", back_populates="team", lazy="dynamic")
 
     def __repr__(self):
         return f'<Team {self.name} - {self.division}>'
 
-def add_team(name, city):
+def add_team(name, division, id=None):
     try:
-        new_team = Team(name=name, city=city)
+        new_team = Team(id=id, name=name, division=division)
         db.session.add(new_team)
         db.session.commit()
         current_app.logger.info(f"Successfully added team: {name}")
@@ -69,7 +69,7 @@ class Game(db.Model):
     # Relationships
     home_team = db.relationship('Team', foreign_keys=[home_team_id])
     away_team = db.relationship('Team', foreign_keys=[away_team_id])
-    # player_games = db.relationship('PlayerGame', back_populates='game')
+    player_games = db.relationship('PlayerGame', back_populates='game')
 
     def __repr__(self):
         return f'<Game ID: {self.id}, Home Team: {self.home_team}, Away Team: {self.away_team}>'
@@ -77,6 +77,8 @@ class Game(db.Model):
 def add_game(home_team_id, away_team_id, spread=None, over_under=None):
     """Adds a new game to the database."""
     try:
+        if not home_team_id or not away_team_id:
+            raise ValueError("Both home_team_id and away_team_id must be provided.")
         new_game = Game(
             home_team_id=home_team_id,
             away_team_id=away_team_id,
@@ -85,11 +87,11 @@ def add_game(home_team_id, away_team_id, spread=None, over_under=None):
         )
         db.session.add(new_game)
         db.session.commit()
-        print(f"Game added: Home Team ID {home_team_id}, Away Team ID {away_team_id}")
+        current_app.logger.info(f"Game added: Home Team ID {home_team_id}, Away Team ID {away_team_id}")
         return new_game.id  # Return the game ID for reference if needed
     except Exception as e:
         db.session.rollback()
-        print(f"Error adding game: {e}")
+        current_app.logger.error(f"Error adding game: {e}")
         return None
 
 
@@ -98,7 +100,8 @@ class PlayerGame(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False)
-    game_id = db.Column(db.Integer, nullable=True)
+    game_id = db.Column(db.Integer, db.ForeignKey('games.id'), nullable=False)
+
     rush_attempts = db.Column(db.Integer, default=0)
     rush_yards = db.Column(db.Float, default=0)
     rush_tds = db.Column(db.Integer, default=0)
@@ -109,10 +112,10 @@ class PlayerGame(db.Model):
 
     # Relationships
     player = db.relationship('Player', back_populates='player_games')
-    # game = db.relationship('Game', back_populates='player_games')
+    game = db.relationship('Game', back_populates='player_games')
 
     def __repr__(self):
-        return f'<PlayerGame Player ID: {self.player_id}, Game ID: {self.game_id}, Stats: Pass Yds: {self.pass_yards}, Rush Yds: {self.rush_yards}, Rec Yds: {self.rec_yards}>'
+        return f'<PlayerGame Player ID: {self.player_id}, Game ID: {self.game_id}>'
 
 def add_player_game(player_id, game_id, rush_attempts=0, rush_yards=0.0, rush_tds=0, 
                     targets=0, receptions=0, rec_yards=0.0, rec_tds=0):
@@ -131,9 +134,9 @@ def add_player_game(player_id, game_id, rush_attempts=0, rush_yards=0.0, rush_td
         )
         db.session.add(new_player_game)
         db.session.commit()
-        print(f"Player Game added: Player ID {player_id}, Game ID {game_id}")
+        current_app.logger.info(f"Player Game added: Player ID {player_id}, Game ID {game_id}")
         return new_player_game.id  # Return the player game ID for reference if needed
     except Exception as e:
         db.session.rollback()
-        print(f"Error adding player game: {e}")
+        current_app.logger.error(f"Error adding player game: {e}")
         return None

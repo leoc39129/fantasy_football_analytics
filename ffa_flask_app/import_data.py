@@ -1,4 +1,4 @@
-from app.models import add_player_game, db, Player, PlayerGame
+from app.models import *
 from app import create_app
 import time
 import pandas as pd
@@ -35,7 +35,6 @@ def import_weekly_player_stats(player_id, player_name, team, position, csv_path)
     :param position: The player's position.
     :param csv_path: Path to the CSV file with weekly stats.
     """
-    print(player_name)
     # Check if the player exists and add them if not
     add_player_if_not_exists(player_id, player_name, team, position)
 
@@ -85,26 +84,7 @@ def import_weekly_player_stats(player_id, player_name, team, position, csv_path)
                 db.session.rollback()
                 print(f"Error importing stats for Week {row['date']}: {e}")
 
-if __name__ == "__main__":
-    # print("Uncomment instructions!")
-
-    # Call the function with the specified player ID
-    
-    # Set up argument parser
-    wr_ids = {
-        "Ja'marr Chase" : 22564,
-        "Amon-Ra St. Brown" : 22587,
-        "CeeDee Lamb" : 21679,
-        "Justin Jefferson" : 21685,
-        "Terry McLaurin" : 20873,
-        "Garrett Wilson" : 23122,
-        "Jaxon Smith-Njigba" : 23157,
-        "Zay Flowers" : 23120,
-        "Cortland Sutton" : 19800,
-        "Malik Nabers" : 24953,
-        "Ladd McConkey" : 25097,
-        "Nico Collins" : 21756
-    }
+if __name__ == "__main__":    
 
     rb_ids = {
         "Breece Hall" : [22526, "NYJ", "RB"],
@@ -125,15 +105,42 @@ if __name__ == "__main__":
         "Bucky Irving" : [24967, "TB", "RB"]
     }
 
-    for rb in rb_ids:
-        # Path to your CSV file
-        first, last = rb.split(" ")[0].lower(), rb.split(" ")[1].lower()
-        CSV_FILE_PATH = f"../data/{first}_{last}_2024.csv"
-
-        # Load the CSV and print the column names
-        df = pd.read_csv(CSV_FILE_PATH, skiprows=1)
-        print(df.columns)
-
-        import_weekly_player_stats(rb_ids[rb][0], rb, rb_ids[rb][1], rb_ids[rb][2], CSV_FILE_PATH)
+    team_ids = {
+        "Raiders" : ["OAK", "AFC West", 1],
+        "Jaguars" : ["JAX", "AFC South", 2],
+        "Patriots" : ["NE", "AFC East", 3],
+        "Giants" : ["NYG", "NFC East", 4],
+        "Ravens" : ["BAL", "AFC North", 5],
+        "Titans" : ["TEN", "AFC South", 6],
+        "Lions" : ["DET", "NFC North", 7],
+        "Falcons" : ["ATL", "NFC South", 8],
+        "Browns" : ["CLE", "AFC North", 9],
+        "Bengals" : ["CIN", "AFC North", 10],
+        "Cardinals" : ["ARI", "NFC West", 11],
+        "Eagles" : ["PHI", "NFC East", 12],
+        "Jets" : ["NYJ", "AFC East", 13],
+        "49ers" : ["SF", "NFC West", 14],
+        "Packers" : ["GB", "NFC North", 15],
+        "Bears" : ["CHI", "NFC North", 16],
+        "Chiefs" : ["KC", "AFC West", 17],
+        "Commanders" : ["WAS", "NFC East", 18],
+        "Panthers" : ["CAR", "NFC South", 19],
+        "Bills" : ["BUF", "AFC East", 20],
+        "Colts" : ["IND", "AFC South", 21],
+        "Steelers" : ["PIT", "AFC North", 22],
+        "Seahawks" : ["SEA", "NFC West", 23],
+        "Buccaneers" : ["TB", "NFC South", 24],
+        "Dolphins" : ["MIA", "AFC East", 25],
+        "Texans" : ["HOU", "AFC South", 26],
+        "Saints" : ["NO", "NFC South", 27],
+        "Broncos" : ["DEN", "AFC West", 28],
+        "Cowboys" : ["DAL", "NFC East", 29],
+        "Chargers" : ["LAC", "NFC West", 30],
+        "Rams" : ["LAR", "NFC West", 31],
+        "Vikings" : ["MIN", "NFC North", 32]
+    }
+    # with app.app_context():
+    #     for team in team_ids:
+    #         add_team(team_ids[team][0], team_ids[team][1], team_ids[team][2])
 
     

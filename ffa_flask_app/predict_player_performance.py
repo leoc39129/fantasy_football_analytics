@@ -131,16 +131,28 @@ def predict_next_week_fantasy_points(player_id):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Train a Linear Regression model
-    model = LinearRegression()
-    model.fit(X_train, y_train)
+    lin_model = LinearRegression()
+    lin_model.fit(X_train, y_train)
 
-    # Predict fantasy points for the next week
-    # You can use average values from the dataset as the input for predictions
-    avg_stats = X.mean()
-    predicted_points = model.predict([avg_stats])[0]
+    # Predict fantasy points for the test set
+    predictions = lin_model.predict(X_test)
 
-    print(f"Predicted Fantasy Points (PPR) for Player ID {player_id} next week: {predicted_points:.2f}")
-    return predicted_points
+    # Compare predictions with actual values
+    test_results = pd.DataFrame({
+        "Actual": y_test,
+        "Predicted": predictions
+    })
+    print("\nTest Set Predictions vs Actual Values:")
+    print(test_results)
+
+    # Calculate evaluation metrics
+    mae = np.mean(np.abs(test_results["Actual"] - test_results["Predicted"]))
+    mse = np.mean((test_results["Actual"] - test_results["Predicted"])**2)
+    print(f"\nModel Evaluation Metrics:")
+    print(f"Mean Absolute Error (MAE): {mae:.2f}")
+    print(f"Mean Squared Error (MSE): {mse:.2f}")
+
+    return test_results
 
 # Example usage
 if __name__ == "__main__":

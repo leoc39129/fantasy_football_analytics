@@ -61,33 +61,18 @@ Backend/Database:
 4. Support a bulk import for restoring lost data or importing first time data
 
 TO DO:
-So there are some major issues with some of the endpoints -- the stats are just wrong for the bulk imports, and still a little bit wrong for individual players, but very fixable
 
-For Javonte Williams (playerID: 22558)
-https://api.sportsdata.io/v3/nfl/stats/json/PlayerGameStatsBySeason/2024/22558/all?key=eb609e05efa8406fba6c84327f4ff4dc
+So the endpoints on sportsdata.io are just completely scrambled for historical data, and we're also going to need historical data on the defensive team, over under, home vs. away games, spread, etc. because we can't predict points using data like rush attempts, rush yards, ... we have to predict based on similar games of the past and then see what a player has done in that situation, predict rush yds, attempts ... which will THEN get us to a fantasy point prediction. So, for now, data is the #1 priority.
 
-Rushing attempts, targets, and receptions are not integers -- round them up and they're fine
-For rushing/reception yds, once the number gets to >50 yds, often you have to add one yard and round up
+Before we begin importing data, let's fix the models and make sure they're EXACTLY what we want them to be and make sure this new API has all of the information we want.
 
-Confirming that trend with a few other players/positions...
+Models are all set, import player data from dashboard.api-football.com
+Documentation: https://api-sports.io/documentation/nfl/v1
+API key is already in the .env, just gotta make it work with the headers
 
-WR:
-Drake London (playerID: 23151)
-Receptions and targets just need to be rounded up
-Reception yds just need to be rounded up (except one entry -- 152.8 vs. 154)
-
-QB:
-Bo Nix (playerID: 25069)
-https://api.sportsdata.io/v3/nfl/stats/json/PlayerGameStatsBySeason/2024/25069/all?key=eb609e05efa8406fba6c84327f4ff4dc
-
-These stats don't seem to have any rhyme or reason with them, the passing yards are WAY off, like 100 yards off, interceptions are off, passing TDs and probably attempts/completions are correct
-
-For now, I guess we'll ignore QBs and only worry about WRs and RBs, using this player by player approach to get the most accurate stats
-
-So I got Drake London added as a player and each of his games as a playergame. Do this for the top RBs and WRs, move on to prediction soon
-1. Prediction
-2. Smoother importing, DB backups
-3. Connect Team and Game models to Player and PlayerGame models
+We'll be using these endpoints
+1. "games" for Game - load in games from 2022-present 
+2. "games/statistics/players" for PlayerGame - using the games we have, get players and their performances, we'll have to validate whether the player is in the database before adding their PlayerGame
 
 
 
@@ -104,5 +89,9 @@ Setting up a development environment
 6. Start the backend development server (make sure you're in the ffa_flask_app dir, python3 run.py)
 7. Make sure npm is up to date, navigate to the frontend folder and install npm
 8. Run "npm run serve" to start the development frontend server
+
+Wiping the dev database
+1. DELETE FROM table_name; 
+    Be careful using this, as you can't have any foreign key dependencies
 
 
