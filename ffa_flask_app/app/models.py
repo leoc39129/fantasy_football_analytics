@@ -63,8 +63,15 @@ class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     home_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
     away_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
+
     spread = db.Column(db.Float, nullable=True)
     over_under = db.Column(db.Float, nullable=True)
+
+    home_team_score = db.Column(db.Integer, nullable=True)
+    away_team_score = db.Column(db.Integer, nullable=True)
+
+    date = db.Column(db.Date, nullable=True)  # Add date field
+    game_time = db.Column(db.Time, nullable=True)  # Add time field
 
     # Relationships
     home_team = db.relationship('Team', foreign_keys=[home_team_id])
@@ -74,25 +81,44 @@ class Game(db.Model):
     def __repr__(self):
         return f'<Game ID: {self.id}, Home Team: {self.home_team}, Away Team: {self.away_team}>'
     
-def add_game(home_team_id, away_team_id, spread=None, over_under=None):
-    """Adds a new game to the database."""
+def add_game(home_team_id, away_team_id, spread=None, over_under=None, home_team_score=None, away_team_score=None, date=None, game_time=None, id=None):
+    """Adds a new game to the database, ensuring no duplicate games are added."""
     try:
         if not home_team_id or not away_team_id:
             raise ValueError("Both home_team_id and away_team_id must be provided.")
+
+        # Check if a game with the same non-nullable information already exists
+        existing_game = Game.query.filter_by(
+            home_team_id=home_team_id,
+            away_team_id=away_team_id,
+            date=date
+        ).first()
+
+        if existing_game:
+            current_app.logger.info(f"Game already exists: Home Team ID {home_team_id}, Away Team ID {away_team_id}, Date {date}")
+            return None
+
+        # Create a new game
         new_game = Game(
+            id=id,
             home_team_id=home_team_id,
             away_team_id=away_team_id,
             spread=spread,
-            over_under=over_under
+            over_under=over_under,
+            home_team_score=home_team_score,
+            away_team_score=away_team_score,
+            date=date,
+            game_time=game_time
         )
         db.session.add(new_game)
         db.session.commit()
-        current_app.logger.info(f"Game added: Home Team ID {home_team_id}, Away Team ID {away_team_id}")
+        current_app.logger.info(f"Game added: Home Team ID {home_team_id}, Away Team ID {away_team_id}, Date {date}")
         return new_game.id  # Return the game ID for reference if needed
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error adding game: {e}")
         return None
+
 
 
 class PlayerGame(db.Model):

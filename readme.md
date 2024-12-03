@@ -72,6 +72,7 @@ API key is already in the .env, just gotta make it work with the headers
 
 We'll be using these endpoints
 1. "games" for Game - load in games from 2022-present 
+    Use team_id and season to get a season's worth of games
 2. "games/statistics/players" for PlayerGame - using the games we have, get players and their performances, we'll have to validate whether the player is in the database before adding their PlayerGame
 
 
