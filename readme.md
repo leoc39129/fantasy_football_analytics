@@ -75,6 +75,10 @@ We'll be using these endpoints
     Use team_id and season to get a season's worth of games
 2. "games/statistics/players" for PlayerGame - using the games we have, get players and their performances, we'll have to validate whether the player is in the database before adding their PlayerGame
 
+Got the game imports working! Definitely one thing to think about is that this was a static import -- rather than an import while the full stack web app is working in the background. Scheduling a task for something like this might require a little bit of adjustment.
+
+Otherwise, we cruise on! We'll do more season imports soon, but for now the focus will be on getting this season's player data imported. It'll be weird to see how to importing player game performance for games I haven't imported yet will work -- might have to set up a scheduled task soon.
+
 
 
 ##############################################################################

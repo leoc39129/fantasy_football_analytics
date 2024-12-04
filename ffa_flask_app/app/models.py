@@ -16,11 +16,33 @@ class Player(db.Model):
     def __repr__(self):
         return f'<Player {self.name} - {self.position}>'
     
-def add_player(name, position, team_id):
+def add_player(name, position, team_id, id=None):
     try:
         if not team_id:
             raise ValueError("team_id cannot be None")
-        new_player = Player(name=name, position=position, team=team_id)
+        
+        team = Team.query.get(team_id)
+        if not team:
+            raise ValueError(f"Team with ID {team_id} does not exist.")
+        
+        # Check if a player with the same non-nullable information already exists
+        existing_player = Player.query.filter_by(
+            name=name,
+            position=position,
+            team_id=team.id
+        ).first()
+
+        if existing_player:
+            current_app.logger.info(f"Player already exists: Name {name}, Position {position}, Team ID {team_id}")
+            return None
+        
+        new_player = Player(
+            id=id, 
+            name=name, 
+            position=position, 
+            team=team
+        )
+
         db.session.add(new_player)
         db.session.commit()
         current_app.logger.info(f"Successfully added player: {name}")
@@ -72,6 +94,8 @@ class Game(db.Model):
 
     date = db.Column(db.Date, nullable=True)  # Add date field
     game_time = db.Column(db.Time, nullable=True)  # Add time field
+
+    stats_processed = db.Column(db.Boolean, default=False, nullable=False)
 
     # Relationships
     home_team = db.relationship('Team', foreign_keys=[home_team_id])
@@ -128,13 +152,20 @@ class PlayerGame(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False)
     game_id = db.Column(db.Integer, db.ForeignKey('games.id'), nullable=False)
 
+    pass_attempts = db.Column(db.Integer, default=0)
+    pass_completions = db.Column(db.Integer, default=0)
+    pass_yards = db.Column(db.Integer, default=0)
+    pass_tds = db.Column(db.Integer, default=0)
+    pass_int = db.Column(db.Integer, default=0)
     rush_attempts = db.Column(db.Integer, default=0)
-    rush_yards = db.Column(db.Float, default=0)
+    rush_yards = db.Column(db.Integer, default=0)
     rush_tds = db.Column(db.Integer, default=0)
+    longest_rush = db.Column(db.Integer, default=0)
     targets = db.Column(db.Integer, default=0)
     receptions = db.Column(db.Integer, default=0)
-    rec_yards = db.Column(db.Float, default=0)
+    rec_yards = db.Column(db.Integer, default=0)
     rec_tds = db.Column(db.Integer, default=0)
+    longest_rec = db.Column(db.Integer, default=0)
 
     # Relationships
     player = db.relationship('Player', back_populates='player_games')
@@ -143,26 +174,45 @@ class PlayerGame(db.Model):
     def __repr__(self):
         return f'<PlayerGame Player ID: {self.player_id}, Game ID: {self.game_id}>'
 
-def add_player_game(player_id, game_id, rush_attempts=0, rush_yards=0.0, rush_tds=0, 
-                    targets=0, receptions=0, rec_yards=0.0, rec_tds=0):
+def add_player_game(player_id, game_id, pass_attempts=0, pass_completions=0, pass_yards=0, pass_tds=0, pass_int=0,
+                    rush_attempts=0, rush_yards=0, rush_tds=0, longest_rush=0,
+                    targets=0, receptions=0, rec_yards=0.0, rec_tds=0, longest_rec=0):
     """Adds a player's performance in a specific game to the database."""
-    try:
-        new_player_game = PlayerGame(
-            player_id=player_id,
-            game_id=game_id,
-            rush_attempts=rush_attempts,
-            rush_yards=rush_yards,
-            rush_tds=rush_tds,
-            targets=targets,
-            receptions=receptions,
-            rec_yards=rec_yards,
-            rec_tds=rec_tds
-        )
-        db.session.add(new_player_game)
-        db.session.commit()
-        current_app.logger.info(f"Player Game added: Player ID {player_id}, Game ID {game_id}")
-        return new_player_game.id  # Return the player game ID for reference if needed
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error adding player game: {e}")
-        return None
+    existing_player_game = PlayerGame.query.filter_by(player_id=player_id, game_id=game_id).first()
+    if not existing_player_game:
+
+        player = Player.query.get(player_id)
+        if not player:
+            raise ValueError(f"Player with ID {player_id} does not exist.")
+        
+        game = Game.query.get(game_id)
+        if not game:
+            raise ValueError(f"Game with ID {game_id} does not exist.")
+        
+        try:
+            new_player_game = PlayerGame(
+                player_id=player.id,
+                game_id=game.id,
+                pass_attempts=pass_attempts,
+                pass_completions=pass_completions,
+                pass_yards=pass_yards,
+                pass_tds=pass_tds,
+                pass_int=pass_int,
+                rush_attempts=rush_attempts,
+                rush_yards=rush_yards,
+                rush_tds=rush_tds,
+                longest_rush=longest_rush,
+                targets=targets,
+                receptions=receptions,
+                rec_yards=rec_yards,
+                rec_tds=rec_tds,
+                longest_rec=longest_rec
+            )
+            db.session.add(new_player_game)
+            db.session.commit()
+            current_app.logger.info(f"Player Game added: Player ID {player_id}, Game ID {game_id}")
+            return new_player_game.id  # Return the player game ID for reference if needed
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error adding player game: {e}")
+            return None
