@@ -149,62 +149,65 @@ def process_player_stats_from_game(data, game_id):
     for team_data in data['response']:
         team_id = team_data['team']['id']
         for group in team_data['groups']:
-            for player_data in group['players']:
-                player_info = player_data['player']
-                player_id = player_info['id']
-                stats = {stat['name']: stat['value'] for stat in player_data['statistics']}
+            if group['name'] == 'Passing' or group['name'] == 'Rushing' or group['name'] == 'Receiving':
+                for player_data in group['players']:
+                    player_info = player_data['player']
+                    player_id = player_info['id']
+                    stats = {stat['name']: stat['value'] for stat in player_data['statistics']}
 
-                # Initialize stats for the player if not already aggregated
-                if player_id not in aggregated_stats:
-                    
-                    if group['name'] == 'Passing':
-                        position = "QB"
-                    elif group['name'] == 'Rushing':
-                        position = "RB"
+                    # Initialize stats for the player if not already aggregated
+                    if player_id not in aggregated_stats:
+                        
+                        player = Player.query.filter_by(id=player_id).first()
+                        if player:
+                            position = player.position
+                        else:  
+                            if group['name'] == 'Passing':
+                                position = "QB"
+                            elif group['name'] == 'Rushing':
+                                position = "RB"
+                            else:
+                                position = "WR"
+
+                        aggregated_stats[player_id] = {
+                            'team_id': team_id,
+                            'name': player_info['name'],
+                            'position': position,
+                            'pass_attempts': 0,
+                            'pass_completions': 0,
+                            'pass_yards': 0,
+                            'pass_tds': 0,
+                            'pass_int': 0,
+                            'rush_attempts': 0,
+                            'rush_yards': 0,
+                            'rush_tds': 0,
+                            'longest_rush': 0,
+                            'targets': 0,
+                            'receptions': 0,
+                            'rec_yards': 0,
+                            'rec_tds': 0,
+                            'longest_rec': 0,
+                        }
+
+                    # Aggregate the statistics for the player
+                    if position == "QB":
+                        aggregated_stats[player_id]['pass_attempts'] += int(stats.get('comp att', '0').split('/')[1]) if 'comp att' in stats else 0
+                        aggregated_stats[player_id]['pass_completions'] += int(stats.get('comp att', '0').split('/')[0]) if 'comp att' in stats else 0
+                        aggregated_stats[player_id]['pass_yards'] += int(stats.get('yards', '0'))
+                        aggregated_stats[player_id]['pass_tds'] += int(stats.get('passing touch downs', '0'))
+                        aggregated_stats[player_id]['pass_int'] += int(stats.get('interceptions', '0'))
+
                     else:
-                        position = "WR"
-
-                    aggregated_stats[player_id] = {
-                        'team_id': team_id,
-                        'name': player_info['name'],
-                        'position': position,
-                        'pass_attempts': 0,
-                        'pass_completions': 0,
-                        'pass_yards': 0,
-                        'pass_tds': 0,
-                        'pass_int': 0,
-                        'rush_attempts': 0,
-                        'rush_yards': 0,
-                        'rush_tds': 0,
-                        'longest_rush': 0,
-                        'targets': 0,
-                        'receptions': 0,
-                        'rec_yards': 0,
-                        'rec_tds': 0,
-                        'longest_rec': 0,
-                    }
-
-                # Aggregate the statistics for the player
-                if position == "QB":
-                    aggregated_stats[player_id]['pass_attempts'] += int(stats.get('comp att', '0').split('/')[1]) if 'comp att' in stats else 0
-                    aggregated_stats[player_id]['pass_completions'] += int(stats.get('comp att', '0').split('/')[0]) if 'comp att' in stats else 0
-                    aggregated_stats[player_id]['pass_yards'] += int(stats.get('yards', '0'))
-                    aggregated_stats[player_id]['pass_tds'] += int(stats.get('passing touch downs', '0'))
-                    aggregated_stats[player_id]['pass_int'] += int(stats.get('interceptions', '0'))
-
-                elif position == "RB":
-                    aggregated_stats[player_id]['rush_attempts'] += int(stats.get('total rushes', '0'))
-                    aggregated_stats[player_id]['rush_yards'] += int(stats.get('yards', '0'))
-                    aggregated_stats[player_id]['rush_tds'] += int(stats.get('rushing touch downs', '0'))
-                    aggregated_stats[player_id]['longest_rush'] = max(
-                        aggregated_stats[player_id]['longest_rush'], int(stats.get('longest rush', '0'))
-                    )
-                else:
-                    aggregated_stats[player_id]['targets'] += int(stats.get('targets', '0'))
-                    aggregated_stats[player_id]['receptions'] += int(stats.get('total receptions', '0'))
-                    aggregated_stats[player_id]['rec_yards'] += int(stats.get('yards', '0'))
-                    aggregated_stats[player_id]['rec_tds'] += int(stats.get('receiving touch downs', '0'))
-                    aggregated_stats[player_id]['longest_rec'] = int(stats.get('longest reception', '0'))
+                        aggregated_stats[player_id]['rush_attempts'] += int(stats.get('total rushes', '0'))
+                        aggregated_stats[player_id]['rush_yards'] += int(stats.get('yards', '0'))
+                        aggregated_stats[player_id]['rush_tds'] += int(stats.get('rushing touch downs', '0'))
+                        aggregated_stats[player_id]['longest_rush'] = int(stats.get('longest rush', '0'))
+                    
+                        aggregated_stats[player_id]['targets'] += int(stats.get('targets', '0'))
+                        aggregated_stats[player_id]['receptions'] += int(stats.get('total receptions', '0'))
+                        aggregated_stats[player_id]['rec_yards'] += int(stats.get('yards', '0'))
+                        aggregated_stats[player_id]['rec_tds'] += int(stats.get('receiving touch downs', '0'))
+                        aggregated_stats[player_id]['longest_rec'] = int(stats.get('longest reception', '0'))
                     
 
     # Process the aggregated statistics
@@ -261,10 +264,10 @@ def get_oldest_unprocessed_game():
 if __name__ == "__main__":
 
     with app.app_context():
-        for x in range(20):
+        for x in range(69):
             print()
             print(x)
-            if x == 10:
+            if x != 0 and x % 10 == 0:
                 print("Waiting to not screw up API access")
                 time.sleep(60)
             game_id = get_oldest_unprocessed_game()
