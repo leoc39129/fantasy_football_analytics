@@ -7,50 +7,93 @@ class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     position = db.Column(db.String(20), nullable=False)
-    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)  # Correct foreign key column
 
     # Relationships
-    team = db.relationship("Team", back_populates="players")  # Corrected relationship
+    player_teams = db.relationship("PlayerTeam", back_populates="player")
     player_games = db.relationship('PlayerGame', back_populates='player')
 
     def __repr__(self):
         return f'<Player {self.name} - {self.position}>'
     
-def add_player(name, position, team_id, id=None):
+def add_player(name, position, team_id, start_date=None, id=None):
     try:
         if not team_id:
             raise ValueError("team_id cannot be None")
         
-        team = Team.query.get(team_id)
-        if not team:
-            raise ValueError(f"Team with ID {team_id} does not exist.")
-        
-        # Check if a player with the same non-nullable information already exists
-        existing_player = Player.query.filter_by(
-            name=name,
-            position=position,
-            team_id=team.id
-        ).first()
-
+        # Check if the player already exists
+        existing_player = Player.query.filter_by(name=name, position=position).first()
         if existing_player:
-            current_app.logger.info(f"Player already exists: Name {name}, Position {position}, Team ID {team_id}")
-            return None
+            current_app.logger.info(f"Player already exists: {name}")
+            return existing_player
         
         new_player = Player(
             id=id, 
             name=name, 
-            position=position, 
-            team=team
+            position=position
         )
 
         db.session.add(new_player)
         db.session.commit()
+
+        # Add a PlayerTeam entry for the player's current team if it doesn't exist already
+        add_player_team(new_player.id, team_id, start_date)
+
         current_app.logger.info(f"Successfully added player: {name}")
         return new_player
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Failed to add player {name}: {e}")
         raise
+
+
+class PlayerTeam(db.Model):
+    __tablename__ = 'player_teams'
+
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=True)  # Null means the player is currently on this team
+
+    # Relationships
+    player = db.relationship("Player", back_populates="player_teams")
+    team = db.relationship("Team")
+
+
+def add_player_team(player_id, team_id, start_date, end_date=None):
+    ''' Add a PlayerTeam entry for the player's current team if it doesn't exist already '''
+    try:
+        # Check if a PlayerTeam entry already exists with the same player_id, team_id, and start_date
+        existing_entry = PlayerTeam.query.filter_by(
+            player_id=player_id,
+            team_id=team_id,
+        ).first()
+
+        if existing_entry:
+            current_app.logger.info(f"PlayerTeam entry already exists: Player ID {player_id}, Team ID {team_id}, Start Date {start_date}")
+            return existing_entry
+
+        if not start_date:
+            current_app.logger.info("PlayerTeam call needs a start date")
+            return None
+
+        # If no existing entry, create a new PlayerTeam entry
+        new_player_team = PlayerTeam(
+            player_id=player_id,
+            team_id=team_id,
+            start_date=start_date,
+            end_date=end_date
+        )
+        db.session.add(new_player_team)
+        db.session.commit()
+        current_app.logger.info(f"Successfully added PlayerTeam entry: Player ID {player_id}, Team ID {team_id}")
+        return new_player_team
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Failed to add PlayerTeam for Player ID {player_id}: {e}")
+        raise
+
     
     
 class Team(db.Model):
@@ -61,7 +104,7 @@ class Team(db.Model):
     division = db.Column(db.String(10), nullable=False)
 
     # Relationships
-    players = db.relationship("Player", back_populates="team", lazy="dynamic")
+    player_teams = db.relationship("PlayerTeam", back_populates="team", lazy="dynamic")
 
     def __repr__(self):
         return f'<Team {self.name} - {self.division}>'

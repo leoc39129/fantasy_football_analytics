@@ -6,7 +6,7 @@ import requests
 import os
 from dotenv import load_dotenv
 import json
-from datetime import datetime
+from datetime import datetime, date
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -141,7 +141,7 @@ def static_team_game_import():
             print(f"Error: {response.status_code} - {response.text}")
 
 
-def process_player_stats_from_game(data, game_id):
+def process_player_stats_from_game(data, game_id, game_date):
     
     # Create a dictionary to aggregate stats by player_id
     aggregated_stats = {}
@@ -190,19 +190,20 @@ def process_player_stats_from_game(data, game_id):
                         }
 
                     # Aggregate the statistics for the player
-                    if position == "QB":
+                    if group['name'] == 'Passing':
                         aggregated_stats[player_id]['pass_attempts'] += int(stats.get('comp att', '0').split('/')[1]) if 'comp att' in stats else 0
                         aggregated_stats[player_id]['pass_completions'] += int(stats.get('comp att', '0').split('/')[0]) if 'comp att' in stats else 0
                         aggregated_stats[player_id]['pass_yards'] += int(stats.get('yards', '0'))
                         aggregated_stats[player_id]['pass_tds'] += int(stats.get('passing touch downs', '0'))
                         aggregated_stats[player_id]['pass_int'] += int(stats.get('interceptions', '0'))
 
-                    else:
+                    elif group['name'] == 'Rushing':
                         aggregated_stats[player_id]['rush_attempts'] += int(stats.get('total rushes', '0'))
                         aggregated_stats[player_id]['rush_yards'] += int(stats.get('yards', '0'))
                         aggregated_stats[player_id]['rush_tds'] += int(stats.get('rushing touch downs', '0'))
                         aggregated_stats[player_id]['longest_rush'] = int(stats.get('longest rush', '0'))
-                    
+
+                    elif group['name'] == 'Receiving':
                         aggregated_stats[player_id]['targets'] += int(stats.get('targets', '0'))
                         aggregated_stats[player_id]['receptions'] += int(stats.get('total receptions', '0'))
                         aggregated_stats[player_id]['rec_yards'] += int(stats.get('yards', '0'))
@@ -214,7 +215,7 @@ def process_player_stats_from_game(data, game_id):
     for player_id, stats in aggregated_stats.items():
         # Add the player to the database if he doesn't exist
 
-        add_player(stats['name'], stats['position'], stats['team_id'], id=player_id)
+        add_player(stats['name'], stats['position'], stats['team_id'], start_date=game_date, id=player_id)
 
         print(f"Name: {stats['name']} - Position: {stats['position']} - Team ID: {stats['team_id']} - Player ID: {player_id}")
 
@@ -252,25 +253,29 @@ def get_oldest_unprocessed_game():
         game = Game.query.filter_by(stats_processed=False).order_by(Game.date.asc()).first()
         if game:
             print(f"Oldest unprocessed game found: Game ID {game.id}, Date: {game.date}")
-            return game.id  # Return the game ID
+            return game.id, game.date  # Return the game ID
         else:
             print("No unprocessed games found.")
             return None
     except Exception as e:
         print(f"Error retrieving oldest unprocessed game: {e}")
-        return None
+        return None, None
 
 
 if __name__ == "__main__":
 
     with app.app_context():
-        for x in range(69):
+        for x in range(100):
             print()
             print(x)
             if x != 0 and x % 10 == 0:
                 print("Waiting to not screw up API access")
                 time.sleep(60)
-            game_id = get_oldest_unprocessed_game()
+                
+            game_id, game_date = get_oldest_unprocessed_game()
+            if not game_id or not game_date:
+                print("No more unprocessed games available.")
+                break
 
             if game_id:
 
@@ -300,7 +305,7 @@ if __name__ == "__main__":
                     data = response.json()
 
                     # Modify function to accept raw json rather than a file path
-                    process_player_stats_from_game(data, game_id)
+                    process_player_stats_from_game(data, game_id, game_date)
 
                     print(f"Processed player stats from game: {game_id}")
 
