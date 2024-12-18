@@ -75,9 +75,17 @@ We'll be using these endpoints
     Use team_id and season to get a season's worth of games
 2. "games/statistics/players" for PlayerGame - using the games we have, get players and their performances, we'll have to validate whether the player is in the database before adding their PlayerGame
 
-Got the game imports working! Definitely one thing to think about is that this was a static import -- rather than an import while the full stack web app is working in the background. Scheduling a task for something like this might require a little bit of adjustment.
+We'll cruise along with importing player game statistics for the past 3 seasons, while working in tandem on the prediction/ML aspect of player performance. There should be no more roadblocks importing player statistics for more recent games, so we should be able to import the remaining ~550 games over the next week.
 
-Otherwise, we cruise on! We'll do more season imports soon, but for now the focus will be on getting this season's player data imported. It'll be weird to see how to importing player game performance for games I haven't imported yet will work -- might have to set up a scheduled task soon.
+One problem that will arise with the PlayerTeam table is if we decide to import games from before 2021, as the PlayerTeam object specifies a start date which we assume is the earliest game in the database. Importing earlier games will cause duplicate PlayerTeam objects based on different starting dates or errors that will need to be handled. This is just the dev environment for a reason though - we'll cross that bridge when we get to it.
+
+Otherwise, we just need to do some research on what should be the features of our prediction model, test them, and refine them until a somewhat accurate, cohesive model is created. 
+
+So for predictions, we have a couple problems:
+1. Filter out inconsequential performances (from backups, players who don't get much attention/playing time, etc.)
+2. Predict based on the specified player's past performances AND players who have played against the specified team IN COMPARISON TO their performances -- this will mean if we're looking at Breece Hall vs. LAR, look at Breece Hall's past performances. ALSO, look at (for ex.) James Conner's performance vs. LAR compared to his other past performances to make a prediction.
+
+I'm not sure how this will take shape, but it's a lot more complicated than feeding a bunch of data into a RandomForest
 
 
 
