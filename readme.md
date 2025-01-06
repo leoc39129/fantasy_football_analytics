@@ -87,7 +87,33 @@ So for predictions, we have a couple problems:
 
 I'm not sure how this will take shape, but it's a lot more complicated than feeding a bunch of data into a RandomForest
 
+Also, the way we create player_team objects is incorrect at the moment. We're going to have to go through all of each player's PlayerGames to see if they change teams, and create a new player_team object when that happens. For now, let's get all the player performances and we can write a script to make that fix afterwards. After that, we can import new games that we don't have, import player performances, and continue on with prediction.
 
+For now, let's keep it simple. Predict a player's performance by...
+1) Looking at their past performances
+2) Looking at how other players have performed against the current player's opponent
+
+What's the best way to do all of this?
+
+
+
+
+So I think we found a good way to do it. 
+
+Basically the issue right now is that our initial vision doesn't match up with how the models are being trained. Right now, models are being trained on isolated positional performances -- i.e. the RB1 performances for all the games in the database are being fed into the model for training and testing. However, what we should be looking to do is train the models on three "tuples"
+1. The RB1's performance that game (what we have now)
+2. What's in the first "tuple" of the combined features df right now -- the player's averages from the past 8 games
+3. What's in the second "tuple" of the combined features df right now -- the averages from the 8 past games against the same position
+
+THAT will make for a banging prediction model. Input is #2, #3, output is #1. Train it, test it, then we can SAVE that model. There will be a RB model, trained on ALL of the data in the database, and all you need to do to predict a player's performance is...
+
+1. Get the player's past 8 games of performance
+2. Get the opponent's past 8 games performance against that same position
+3. Feed them to the model and you get predictions for ALL the relevant stats, and they should be damn good
+
+We need alignment between what the model is trained on and what the model is given for predictions. I really like the idea of feeding a model a chosen player's past 8 game averages and that player's opponent's average last 8 performances against the chosen player's position, so the prediction would be the player's performance for that game, for every relevant statistic. The only way I see that working with the current code we have is to modify the load_historical_data function so that we get those three bundles of data, train the models on that data, so that predictions are as easy as feeding the model the two 8 game averages specified.
+
+Keep load_historical_data as is, but then create two new dataframes with the result of that function. After we do that, we have to line those three dataframes up correctly, which I think will be the toughest task.
 
 ##############################################################################
 
