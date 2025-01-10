@@ -271,7 +271,7 @@ if __name__ == "__main__":
             if x != 0 and x % 10 == 0:
                 print("Waiting to not screw up API access")
                 time.sleep(60)
-                
+
             game_id, game_date = get_oldest_unprocessed_game()
             if not game_id or not game_date:
                 print("No more unprocessed games available.")

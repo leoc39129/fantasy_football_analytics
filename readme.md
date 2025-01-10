@@ -115,6 +115,15 @@ We need alignment between what the model is trained on and what the model is giv
 
 Keep load_historical_data as is, but then create two new dataframes with the result of that function. After we do that, we have to line those three dataframes up correctly, which I think will be the toughest task.
 
+Fixed PlayerTeam table!
+
+Now I'm hitting an error when calling get_player_performance in the build_training_dataset function. Here's what comes back from get_player_performance:
+
+Player Games: [<PlayerGame Player ID: 294, Game ID: 13364>, <PlayerGame Player ID: 294, Game ID: 13349>, <PlayerGame Player ID: 294, Game ID: 13333>, <PlayerGame Player ID: 294, Game ID: 13313>, <PlayerGame Player ID: 294, Game ID: 13302>, <PlayerGame Player ID: 294, Game ID: 13292>, <PlayerGame Player ID: 294, Game ID: 13272>, <PlayerGame Player ID: 294, Game ID: 13246>]
+
+Basically, not all the info we want. We want the statistics from each game (rush att, rush yds, targets, recs, etc.)
+Fix this next time!
+
 ##############################################################################
 
 Setting up a development environment

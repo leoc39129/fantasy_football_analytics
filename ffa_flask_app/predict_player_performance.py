@@ -23,7 +23,7 @@ def get_player_performance(player_id, num_games=8):
             .all())
 
 def get_pos_vs_team(team_id, position, num_games=8):
-    """Fetch performances of players with the same position against a specific team."""
+    """Fetch top performances of players with the same position against a specific team."""
     if position not in ["QB", "RB", "WR"]:
         raise ValueError(f"Unsupported position: {position}. Supported positions are QB, RB, WR.")
     
@@ -89,10 +89,8 @@ def calculate_opponent_averages(pos_vs_team_games, stats):
     return opponent_averages
 
 
-def train_model(historical_data_df, target_column):
+def train_model(historical_data_df, target_column, feature_columns):
     """Train a Random Forest model for a specific stat."""
-    # Use all columns except the target column and non-relevant ones as features
-    feature_columns = [col for col in historical_data_df.columns if col not in ['game_id', 'player_id', 'position', 'rank', target_column]]
 
     X = historical_data_df[feature_columns]
     y = historical_data_df[target_column]
@@ -114,9 +112,20 @@ def train_model(historical_data_df, target_column):
 
 def predict_stat(model, combined_features, feature_columns):
     """Predict a single stat using the trained model."""
-    # Ensure combined_features only includes the necessary columns
-    input_data = combined_features[feature_columns].to_numpy().reshape(1, -1)
-    return model.predict(input_data)[0]
+    try:
+        # Filter and reshape input data to match the model's expected format
+        input_data = combined_features[feature_columns].to_numpy().reshape(1, -1)
+
+        # Make a prediction and return the result
+        prediction = model.predict(input_data)[0]
+        return prediction
+    except KeyError as e:
+        print(f"Error: Missing columns in input data: {e}")
+        raise
+    except Exception as e:
+        print(f"Unexpected error during prediction: {e}")
+        raise
+
 
 
 
@@ -172,6 +181,113 @@ def load_historical_data(position):
     return query.all()
 
 
+def get_player_team_on_date(player_id, game_date):
+    """Fetch the player's team for a specific game date."""
+    return PlayerTeam.query.filter(
+        PlayerTeam.player_id == player_id,
+        PlayerTeam.start_date <= game_date,
+        (PlayerTeam.end_date.is_(None) | (PlayerTeam.end_date >= game_date))
+    ).first()
+
+
+def build_training_dataset(position):
+    """
+    Build a training dataset for the machine learning model by combining:
+    1. Player's 8-game averages
+    2. Opponent defense's 8-game averages against the position
+    3. Target stats from load_historical_data
+    """
+    # Step 1: Load the historical data for the specified position
+    historical_data = load_historical_data(position)
+    columns = [
+        "game_id", "home_team_id", "away_team_id", "player_id", "position",
+        "total_yards", "rush_attempts", "rush_yards", "rush_tds", "targets", "receptions",
+        "rec_yards", "rec_tds", "pass_attempts", "pass_completions", "pass_yards",
+        "pass_tds", "pass_int", "rank"
+    ]
+    historical_data_df = pd.DataFrame(historical_data, columns=columns)
+    print(historical_data_df.head())
+    
+    # Initialize the final dataset
+    training_data = []
+
+    # Step 2: Iterate through each entry in the historical dataset
+    for _, row in historical_data_df.iterrows():
+        print(row)
+        player_id = row['player_id']
+        print(f"Player ID: {player_id}")
+        game_date = Game.query.get(row['game_id']).date
+
+        # Determine the player's team on the game date
+        player_team = get_player_team_on_date(player_id, game_date)
+        if not player_team:
+            print(f"Error: Could not determine team for player {player_id} on {game_date}")
+            continue
+
+        player_team_id = player_team.team_id
+
+        # Determine opponent team ID
+        opponent_team_id = (
+            row['home_team_id'] if player_team_id == row['away_team_id']
+            else row['away_team_id']
+        )
+
+        # Step 3: Filter player's performances to the last 8 games before the current game date
+        player_games = get_player_performance(player_id)
+        print(f"Player Games: {player_games}")
+        
+       
+        player_8_game_avg = calculate_moving_averages(
+            player_games,
+            [
+                'rush_attempts', 'rush_yards', 'rush_tds', 'targets',
+                'receptions', 'rec_yards', 'rec_tds',
+                'pass_attempts', 'pass_completions', 'pass_yards', 'pass_tds', 'pass_int'
+            ],
+            window=8
+        )
+
+        # Step 4: Filter defensive performances to the last 8 games before the current game date
+        defense_games = get_pos_vs_team(opponent_team_id, position)
+        recent_defense_games = [
+            dg for dg in defense_games if dg.game.date < game_date
+        ]
+        recent_defense_games.sort(key=lambda x: x.game.date, reverse=True)
+        recent_defense_games = recent_defense_games[:8]  # Take the last 8 games
+        defense_8_game_avg = calculate_moving_averages(
+            recent_defense_games,
+            stats=[
+                'rush_attempts', 'rush_yards', 'rush_tds', 'targets',
+                'receptions', 'rec_yards', 'rec_tds',
+                'pass_attempts', 'pass_completions', 'pass_yards', 'pass_tds', 'pass_int'
+            ],
+            window=8
+        )
+
+
+        # Combine data for training
+        combined_data = {
+            **player_8_game_avg,
+            **defense_8_game_avg,
+            'rush_attempts': row['rush_attempts'],
+            'rush_yards': row['rush_yards'],
+            'rush_tds': row['rush_tds'],
+            'receptions': row['receptions'],
+            'rec_yards': row['rec_yards'],
+            'rec_tds': row['rec_tds'],
+            'pass_attempts': row['pass_attempts'],
+            'pass_completions': row['pass_completions'],
+            'pass_yards': row['pass_yards'],
+            'pass_tds': row['pass_tds'],
+            'pass_int': row['pass_int']
+        }
+
+        training_data.append(combined_data)
+
+    return pd.DataFrame(training_data)
+
+
+
 
 
 
@@ -223,16 +339,12 @@ def main():
         combined_features = pd.concat([player_moving_averages, opponent_averages], axis=1)
         print(combined_features)
 
-        # Step 3: Load historical data
-        columns = [
-            "game_id", "home_team_id", "away_team_id", "player_id", "position",
-            "total_yards", "rush_attempts", "rush_yards", "rush_tds", "targets", "receptions",
-            "rec_yards", "rec_tds", "pass_attempts", "pass_completions", "pass_yards",
-            "pass_tds", "pass_int", "rank"
-        ]
-        historical_data_df = pd.DataFrame(load_historical_data(player.position), columns=columns)
-
-        # Step 4: Train models for each stat
+        # Step 3: Load historical data and train models
+        
+        # Maybe shave off columns based on position?
+        print("Building training dataset...")
+        training_df = build_training_dataset(player.position)
+        print(training_df.head)
         print("Training models...")
 
         if player.position == 'RB' or player.position == 'WR' or player.position == 'TE':
@@ -244,20 +356,29 @@ def main():
 
         models = {}
         feature_columns_dict = {}
+
+        # Identify valid feature columns based on 8-game rolling averages
+        valid_features = [f"player_{col}" for col in target_stats] + [f"defense_{col}" for col in target_stats]
+
         for stat in target_stats:
             print(f"Training model for {stat}...")
-            feature_columns = [f"player_{col}" if f"player_{col}" in combined_features.columns else f"opponent_{col}" for col in feature_columns]
-
+            
+            # Feature columns will only include rolling averages (player_ and defense_ prefixes)
+            feature_columns = [col for col in valid_features if col in training_df.columns]
             feature_columns_dict[stat] = feature_columns
-            models[stat] = train_model(historical_data_df, stat)
 
-        # Step 5: Predict performance
+            # Train the model using the filtered feature columns
+            models[stat] = train_model(training_df, stat, feature_columns)
+
+        # Step 4: Predict performance
         print("\nPredicting performance...")
         predictions = {}
         for stat in target_stats:
+            print(f"Predicting {stat}...")
             predictions[stat] = predict_stat(models[stat], combined_features, feature_columns_dict[stat])
 
-        # Step 6: Display predictions
+
+        # Step 5: Display predictions
         print("\nPredicted performance:")
         for stat, value in predictions.items():
             print(f"{stat}: {value:.2f}")
